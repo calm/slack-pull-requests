@@ -1,0 +1,26 @@
+{
+  "name": "slack-pull-requests",
+  "version": "1.0.0",
+  "description": "This is a test file",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/calm/slack-pull-requests.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/calm/slack-pull-requests/issues"
+  },
+  "homepage": "https://github.com/calm/slack-pull-requests#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.6",
+    "@actions/github": "^4.0.0",
+    "@okta/okta-sdk-nodejs": "^4.1.1",
+    "@slack/web-api": "^5.12.0"
+  }
+}

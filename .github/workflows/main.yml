@@ -1,0 +1,23 @@
+on:
+  pull_request:
+    types: [review_requested]
+
+jobs:
+  pull_request_notifier:
+    runs-on: ubuntu-latest
+    name: Notify Requested Reviewers
+    steps:
+      # To use this repository's private action, you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - run: npm install
+      - name: Notify
+        env:
+          OKTA_CLIENT_ORGURL: ${{ secrets.OKTA_CLIENT_ORGURL }}
+          OKTA_CLIENT_TOKEN: ${{ secrets.OKTA_CLIENT_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        uses: ./ # Uses an action in the root directory
+        id: hello

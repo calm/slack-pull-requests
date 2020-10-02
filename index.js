@@ -9,9 +9,9 @@ const { WebClient } = require("@slack/web-api");
 const oktaClient = new okta.Client();
 
 const token = process.env.SLACK_BOT_TOKEN;
-const web = new WebClient(token);
+const slack = new WebClient(token);
 
-let slackMessageTemplate = function (requestUser) {
+const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
     {
       type: "section",
@@ -27,21 +27,28 @@ let slackMessageTemplate = function (requestUser) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: pullRequestData.url,
+        text: pr.url,
       },
       accessory: {
         type: "button",
         text: {
           type: "plain_text",
-          text: pullRequestData.title,
+          text: pr.title,
         },
-        url: pullRequestData.url,
+        url: pr.url,
       },
     },
   ];
 };
 
-let getOktaUser = function (handle) {
+const sendSlackMessage = function (reviewUser, requestUser, pr) {
+  return slack.chat.postMessage({
+    channel: String(reviewUser),
+    blocks: slackMessageTemplateNewPR(requestUser, pr),
+  });
+};
+
+const getOktaUser = function (handle) {
   return oktaClient
     .listUsers({
       search: `profile.github_user eq "@${handle}"`,
@@ -50,50 +57,49 @@ let getOktaUser = function (handle) {
     .next();
 };
 
-let getUserEmailByGithub = function (oktaUser) {
+const getUserEmailByGithub = function (oktaUser) {
   return Promise.resolve(oktaUser.value.profile.email);
 };
 
-let getSlackIdByEmail = function (email) {
-  return web.users.lookupByEmail({ email: email }).then((r) => r.user.id);
+const getSlackIdByEmail = function (email) {
+  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.id);
 };
 
-let getSlackNameByEmail = function (email) {
-  return web.users.lookupByEmail({ email: email }).then((r) => r.user.name);
+const getSlackNameByEmail = function (email) {
+  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.name);
 };
 
-let sendSlackMessage = function (reviewUser, requestUser) {
-  return web.chat.postMessage({
-    channel: String(reviewUser),
-    blocks: slackMessageTemplate(requestUser),
+const getPullRequestData = function (payload) {
+  return Object.create({
+    title: payload.pull_request.title,
+    url: payload.pull_request.html_url,
+    reviewer: payload.requested_reviewer.login,
+    requester: payload.pull_request.user.login,
   });
 };
 
-let payload = github.context.payload;
+const main = function (context) {
+  const pullRequestData = getPullRequestData(context.payload);
 
-const pullRequestData = Object.create({
-  title: payload.pull_request.title,
-  url: payload.pull_request.html_url,
-  reviewer: payload.requested_reviewer.login,
-  requester: payload.pull_request.user.login,
-});
+  const requesterPromise = getOktaUser(pullRequestData.requester)
+    .then(getUserEmailByGithub)
+    .then(getSlackNameByEmail);
+  const reviewerPromise = getOktaUser(pullRequestData.reviewer)
+    .then(getUserEmailByGithub)
+    .then(getSlackIdByEmail);
 
-let requesterPromise = getOktaUser(pullRequestData.requester)
-  .then(getUserEmailByGithub)
-  .then(getSlackNameByEmail);
-let reviewerPromise = getOktaUser(pullRequestData.reviewer)
-  .then(getUserEmailByGithub)
-  .then(getSlackIdByEmail);
+  Promise.all([requesterPromise, reviewerPromise])
+    .then((users) => {
+      const requestUser = users[0];
+      const reviewUser = users[1];
 
-Promise.all([requesterPromise, reviewerPromise])
-  .then((users) => {
-    let requestUser = users[0];
-    let reviewUser = users[1];
+      sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
+        console.log("Message sent: ", res.ts)
+      );
+    })
+    .catch(function (err) {
+      core.setFailed(err.message);
+    });
+};
 
-    sendSlackMessage(reviewUser, requestUser).then((res) =>
-      console.log("Message sent: ", res.ts)
-    );
-  })
-  .catch(function (err) {
-    core.setFailed(err.message);
-  });
+main(github.context);

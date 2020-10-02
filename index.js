@@ -7,6 +7,7 @@ const okta = require("@okta/okta-sdk-nodejs");
 const { WebClient } = require("@slack/web-api");
 
 const oktaClient = new okta.Client();
+const githubFieldName = process.env.GITHUB_FIELD_NAME
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
@@ -51,7 +52,7 @@ const sendSlackMessage = function (reviewUser, requestUser, pr) {
 const getOktaUser = function (handle) {
   return oktaClient
     .listUsers({
-      search: `profile.github_user eq "@${handle}"`,
+      search: `profile.${githubFieldName} eq "@${handle}"`,
       limit: 1,
     })
     .next();

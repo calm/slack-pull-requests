@@ -1,88 +1,105 @@
 "use strict";
-const core = require('@actions/core');
-const github = require('@actions/github');
+const core = require("@actions/core");
+const github = require("@actions/github");
 
 // Requirements outside of Github Actions
-const okta = require('@okta/okta-sdk-nodejs');
-const {WebClient} = require('@slack/web-api');
+const okta = require("@okta/okta-sdk-nodejs");
+const { WebClient } = require("@slack/web-api");
 
 const oktaClient = new okta.Client();
 
 const token = process.env.SLACK_BOT_TOKEN;
-const web = new WebClient(token);
+const slack = new WebClient(token);
 
-let slackMessageTemplate = function (requestUser) {
-    return [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": `@${requestUser} has requested a review on the following Pull Request: `
-            }
+const slackMessageTemplateNewPR = function (requestUser, pr) {
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `@${requestUser} has requested a review on the following Pull Request: `,
+      },
+    },
+    {
+      type: "divider",
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: pr.url,
+      },
+      accessory: {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: pr.title,
         },
-        {
-            "type": "divider"
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": pullRequestData.url
-            },
-            "accessory": {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": pullRequestData.title
-                },
-                "url": pullRequestData.url
-            }
-        }
-    ]
-}
+        url: pr.url,
+      },
+    },
+  ];
+};
 
-let getOktaUser = function (handle) {
-    return oktaClient.listUsers({
-        search: `profile.github_user eq "@${handle}"`, limit: 1
-    }).next()
-}
+const sendSlackMessage = function (reviewUser, requestUser, pr) {
+  return slack.chat.postMessage({
+    channel: String(reviewUser),
+    blocks: slackMessageTemplateNewPR(requestUser, pr),
+  });
+};
 
-let getUserEmailByGithub = function (oktaUser) {
-    return Promise.resolve(oktaUser.value.profile.email)
-}
+const getOktaUser = function (handle) {
+  return oktaClient
+    .listUsers({
+      search: `profile.github_user eq "@${handle}"`,
+      limit: 1,
+    })
+    .next();
+};
 
-let getSlackIdByEmail = function (email) {
-    return web.users.lookupByEmail({email: email}).then(r => r.user.id)
-}
+const getUserEmailByGithub = function (oktaUser) {
+  return Promise.resolve(oktaUser.value.profile.email);
+};
 
-let getSlackNameByEmail = function (email) {
-    return web.users.lookupByEmail({email: email}).then(r => r.user.name)
-}
+const getSlackIdByEmail = function (email) {
+  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.id);
+};
 
-let sendSlackMessage = function (reviewUser, requestUser) {
-    return web.chat.postMessage({channel: String(reviewUser), blocks: slackMessageTemplate(requestUser)})
-}
+const getSlackNameByEmail = function (email) {
+  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.name);
+};
 
-let payload = github.context.payload
-
-const pullRequestData = Object.create({
+const getPullRequestData = function (payload) {
+  return Object.create({
     title: payload.pull_request.title,
     url: payload.pull_request.html_url,
     reviewer: payload.requested_reviewer.login,
-    requester: payload.pull_request.user.login
-})
+    requester: payload.pull_request.user.login,
+  });
+};
 
+const main = function (context) {
+  const pullRequestData = getPullRequestData(context.payload);
 
-let requesterPromise = getOktaUser(pullRequestData.requester).then(getUserEmailByGithub).then(getSlackNameByEmail)
-let reviewerPromise = getOktaUser(pullRequestData.reviewer).then(getUserEmailByGithub).then(getSlackIdByEmail)
+  const requesterPromise = getOktaUser(pullRequestData.requester)
+    .then(getUserEmailByGithub)
+    .then(getSlackNameByEmail);
+  const reviewerPromise = getOktaUser(pullRequestData.reviewer)
+    .then(getUserEmailByGithub)
+    .then(getSlackIdByEmail);
 
-Promise.all([requesterPromise, reviewerPromise])
-    .then(users => {
-        let requestUser = users[0];
-        let reviewUser = users[1];
+  Promise.all([requesterPromise, reviewerPromise])
+    .then((users) => {
+      const requestUser = users[0];
+      const reviewUser = users[1];
 
-        sendSlackMessage(reviewUser, requestUser).then(res => console.log('Message sent: ', res.ts))
+      sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
+        console.log("Message sent: ", res.ts)
+      );
     })
     .catch(function (err) {
-        core.setFailed(err.message);
+      core.setFailed(err.message);
     });
+};
+
+main(github.context);

@@ -4,6 +4,8 @@
   "description": "This is a test file",
   "main": "index.js",
   "scripts": {
+    "lint": "prettier --check .",
+    "lint:fix": "prettier --write .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -22,5 +24,8 @@
     "@actions/github": "^4.0.0",
     "@okta/okta-sdk-nodejs": "^4.1.1",
     "@slack/web-api": "^5.12.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.1.2"
   }
 }

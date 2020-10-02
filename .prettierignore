@@ -1,0 +1,2 @@
+# Put anything Prettier should ignore in here
+package-lock.json

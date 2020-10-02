@@ -1,5 +1,5 @@
 name: "Slack Pull Requests"
 description: "Send Slack DMs to people who are requested reviewers"
 runs:
-  using: "node12"
+  using: "node14"
   main: "index.js"

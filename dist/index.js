@@ -54560,7 +54560,6 @@ const getPullRequestData = function (payload) {
     url: payload.pull_request.html_url,
     reviewer: payload.requested_reviewer.login,
     requester: payload.pull_request.user.login,
-    foo: 'bar',
   });
 };
 

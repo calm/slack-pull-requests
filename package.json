@@ -1,5 +1,5 @@
 {
-  "name": "slack-pull-requests",
+  "name": "@calm/slack-pull-requests",
   "version": "1.0.0",
   "description": "This is a test file",
   "main": "index.js",
@@ -28,5 +28,8 @@
   },
   "devDependencies": {
     "prettier": "^2.1.2"
+  },
+  "publishConfig": {
+    "registry":"https://npm.pkg.github.com"
   }
 }

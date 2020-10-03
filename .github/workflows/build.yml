@@ -1,0 +1,27 @@
+on:
+  push
+
+jobs:
+  ncc_build:
+    runs-on: ubuntu-latest
+    name: Build via NCC
+    steps:
+      # To use this repository's private action, you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: "12"
+      - uses: nelonoel/branch-name@v1
+      - run: npm install
+      - run: npm run build
+      - name: Commit files
+        run: |
+          git config --local user.email "github-action@calm.com"
+          git config --local user.name "GitHub Action Builder"
+          git add ./dist
+          git commit -m "Commit files built via NCC"
+      - name: Push changes
+        run: |
+          remote_repo="https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "${remote_repo}" HEAD:${BRANCH_NAME};

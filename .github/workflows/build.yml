@@ -17,11 +17,13 @@ jobs:
       - run: npm run build
       - name: Commit files
         run: |
+          if [ ! "`git status --porcelain`" ]; then
+            echo "No changes!"
+            exit 0
+          fi
           git config --local user.email "github-action@calm.com"
           git config --local user.name "GitHub Action Builder"
           git add ./dist
           git commit -m "Commit files built via NCC"
-      - name: Push changes
-        run: |
           remote_repo="https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
           git push "${remote_repo}" HEAD:${BRANCH_NAME};

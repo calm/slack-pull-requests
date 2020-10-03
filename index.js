@@ -7,7 +7,7 @@ const okta = require("@okta/okta-sdk-nodejs");
 const { WebClient } = require("@slack/web-api");
 
 const oktaClient = new okta.Client();
-const githubFieldName = process.env.GITHUB_FIELD_NAME
+const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);

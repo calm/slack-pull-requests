@@ -12,6 +12,8 @@ const githubFieldName = process.env.GITHUB_FIELD_NAME
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
 
+const prApprovalImg = "https://i.imgur.com/41zA3Ek.png"
+
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
     {
@@ -41,6 +43,33 @@ const slackMessageTemplateNewPR = function (requestUser, pr) {
     },
   ];
 };
+
+const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `${reviewUser} has approved ${pr.title}: `
+      }
+    },
+    {
+      type: "divider",
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: pr.url,
+      },
+      accessory: {
+        type: "image",
+        image_url: prApprovalImg,
+        alt_text: "LGTM",
+      },
+    },
+  ]
+}
 
 const sendSlackMessage = function (reviewUser, requestUser, pr) {
   return slack.chat.postMessage({

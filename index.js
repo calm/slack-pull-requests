@@ -99,17 +99,13 @@ const getSlackNameByEmail = function (email) {
   return slack.users.lookupByEmail({ email: email }).then((r) => r.user.name);
 };
 
-const getPullRequestData = function (payload) {
-  return Object.create({
-    title: payload.pull_request.title,
-    url: payload.pull_request.html_url,
-    reviewer: payload.requested_reviewer.login,
-    requester: payload.pull_request.user.login,
-  });
-};
-
 const handleReviewRequested = function (context) {
-  const pullRequestData = getPullRequestData(context.payload);
+  const pullRequestData = Object.create({
+    title: context.payload.pull_request.title,
+    url: context.payload.pull_request.html_url,
+    reviewer: context.payload.requested_reviewer.login,
+    requester: context.payload.pull_request.user.login,
+  });
 
   const requesterPromise = getOktaUser(pullRequestData.requester)
     .then(getUserEmailByGithub)
@@ -133,8 +129,10 @@ const handleReviewRequested = function (context) {
 };
 
 const main = function (context) {
-  console.log("[hf] context", JSON.stringify(context));
-  if (context.payload.action === "review_requested") {
+  if (
+    context.eventName === "pull_request" &&
+    context.payload.action === "review_requested"
+  ) {
     handleReviewRequested(context);
   }
 };

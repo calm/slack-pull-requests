@@ -28,7 +28,7 @@ jobs:
           OKTA_CLIENT_TOKEN: ${{ secrets.OKTA_CLIENT_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           GITHUB_FIELD_NAME: 'Github'
-        uses: calm/slack-pull-requests@dk-ncc
+        uses: calm/slack-pull-requests@master
         id: notify
 ```
 

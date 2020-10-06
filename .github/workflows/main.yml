@@ -1,10 +1,26 @@
 on:
   pull_request:
-    types: [assigned, opened, reopened, ready_for_review, review_requested]
+    types:
+      [
+        assigned,
+        unassigned,
+        labeled,
+        unlabeled,
+        opened,
+        edited,
+        closed,
+        reopened,
+        synchronize,
+        ready_for_review,
+        locked,
+        unlocked,
+        review_requested,
+        review_request_removed,
+      ]
   pull_request_review:
     types: [submitted, edited, dismissed]
   pull_request_review_comment:
-    types: [created]
+    types: [created, edited, deleted]
 
 jobs:
   pull_request_notifier:

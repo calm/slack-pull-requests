@@ -6,7 +6,29 @@
 2. Drop the following file into your repo at path `.github/workflows/notify.yml` (editing `GITHUB_FIELD_NAME` as appropriate)
 
 ```
-on: pull_request
+on:
+  pull_request:
+    types:
+      [
+        assigned,
+        unassigned,
+        labeled,
+        unlabeled,
+        opened,
+        edited,
+        closed,
+        reopened,
+        synchronize,
+        ready_for_review,
+        locked,
+        unlocked,
+        review_requested,
+        review_request_removed
+      ]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
 
 jobs:
   pull_request_notifier:

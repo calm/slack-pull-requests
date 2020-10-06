@@ -23,7 +23,7 @@ on:
         locked,
         unlocked,
         review_requested,
-        review_request_removed
+        review_request_removed,
       ]
   pull_request_review:
     types: [submitted, edited, dismissed]

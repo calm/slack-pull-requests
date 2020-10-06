@@ -54491,7 +54491,7 @@ const okta = __webpack_require__(538);
 const { WebClient } = __webpack_require__(431);
 
 const oktaClient = new okta.Client();
-const githubFieldName = process.env.GITHUB_FIELD_NAME
+const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);

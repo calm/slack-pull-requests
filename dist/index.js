@@ -54496,7 +54496,7 @@ const githubFieldName = process.env.GITHUB_FIELD_NAME;
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
 
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png"
+const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -54534,8 +54534,8 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${reviewUser} has approved ${pr.title}: `
-      }
+        text: `${reviewUser} has approved ${pr.title}: `,
+      },
     },
     {
       type: "divider",
@@ -54552,8 +54552,8 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
         alt_text: "LGTM",
       },
     },
-  ]
-}
+  ];
+};
 
 const sendSlackMessage = function (reviewUser, requestUser, pr) {
   return slack.chat.postMessage({
@@ -54592,7 +54592,7 @@ const getPullRequestData = function (payload) {
   });
 };
 
-const main = function (context) {
+const handleReviewRequested = function (context) {
   const pullRequestData = getPullRequestData(context.payload);
 
   const requesterPromise = getOktaUser(pullRequestData.requester)
@@ -54614,6 +54614,12 @@ const main = function (context) {
     .catch(function (err) {
       core.setFailed(err.message);
     });
+};
+
+const main = function (context) {
+  if (context.payload.action === "review_requested") {
+    handleReviewRequested(context);
+  }
 };
 
 main(github.context);

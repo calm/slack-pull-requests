@@ -1,4 +1,10 @@
-on: pull_request
+on:
+  pull_request:
+    types: [assigned, opened, reopened, ready_for_review, review_requested]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created]
 
 jobs:
   pull_request_notifier:

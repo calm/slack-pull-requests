@@ -133,7 +133,7 @@ const handleReviewRequested = function (context) {
 };
 
 const main = function (context) {
-  console.log('[hf] context', JSON.stringify(context));
+  console.log("[hf] context", JSON.stringify(context));
   if (context.payload.action === "review_requested") {
     handleReviewRequested(context);
   }

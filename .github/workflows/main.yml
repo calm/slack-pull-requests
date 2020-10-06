@@ -1,6 +1,4 @@
-on:
-  pull_request:
-    types: [review_requested]
+on: pull_request
 
 jobs:
   pull_request_notifier:

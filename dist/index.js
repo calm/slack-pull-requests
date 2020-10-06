@@ -54496,7 +54496,7 @@ const githubFieldName = process.env.GITHUB_FIELD_NAME;
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
 
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png"
+const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -54534,8 +54534,8 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${reviewUser} has approved ${pr.title}: `
-      }
+        text: `${reviewUser} has approved ${pr.title}: `,
+      },
     },
     {
       type: "divider",
@@ -54552,8 +54552,8 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
         alt_text: "LGTM",
       },
     },
-  ]
-}
+  ];
+};
 
 const sendSlackMessage = function (reviewUser, requestUser, pr) {
   return slack.chat.postMessage({
@@ -54583,17 +54583,13 @@ const getSlackNameByEmail = function (email) {
   return slack.users.lookupByEmail({ email: email }).then((r) => r.user.name);
 };
 
-const getPullRequestData = function (payload) {
-  return Object.create({
-    title: payload.pull_request.title,
-    url: payload.pull_request.html_url,
-    reviewer: payload.requested_reviewer.login,
-    requester: payload.pull_request.user.login,
+const handleReviewRequested = function (context) {
+  const pullRequestData = Object.create({
+    title: context.payload.pull_request.title,
+    url: context.payload.pull_request.html_url,
+    reviewer: context.payload.requested_reviewer.login,
+    requester: context.payload.pull_request.user.login,
   });
-};
-
-const main = function (context) {
-  const pullRequestData = getPullRequestData(context.payload);
 
   const requesterPromise = getOktaUser(pullRequestData.requester)
     .then(getUserEmailByGithub)
@@ -54614,6 +54610,15 @@ const main = function (context) {
     .catch(function (err) {
       core.setFailed(err.message);
     });
+};
+
+const main = function (context) {
+  if (
+    context.eventName === "pull_request" &&
+    context.payload.action === "review_requested"
+  ) {
+    handleReviewRequested(context);
+  }
 };
 
 main(github.context);

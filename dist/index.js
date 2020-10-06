@@ -54565,7 +54565,7 @@ const sendSlackMessage = function (reviewUser, requestUser, pr) {
 const getOktaUser = function (handle) {
   return oktaClient
     .listUsers({
-      search: `profile.${githubFieldName} eq "@${handle}"`,
+      search: `(profile.${githubFieldName} eq "@${handle}") or (profile.${githubFieldName} eq "${handle}")`,
       limit: 1,
     })
     .next();

@@ -54563,24 +54563,28 @@ const sendSlackMessage = function (reviewUser, requestUser, pr) {
 };
 
 const getOktaUser = function (handle) {
-  return oktaClient
-    .listUsers({
-      search: `(profile.${githubFieldName} eq "@${handle}") or (profile.${githubFieldName} eq "${handle}")`,
-      limit: 1,
-    })
-    .next();
+  const search = `(profile.${githubFieldName} eq "@${handle}") or (profile.${githubFieldName} eq "${handle}")`;
+  console.log("Searching okta", search);
+  return oktaClient.listUsers({ search, limit: 1 }).next();
 };
 
 const getUserEmailByGithub = function (oktaUser) {
-  return Promise.resolve(oktaUser.value.profile.email);
+  console.log("Found oktaUser", oktaUser);
+  return oktaUser.value.profile.email;
 };
 
 const getSlackIdByEmail = function (email) {
-  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.id);
+  return slack.users.lookupByEmail({ email: email }).then((r) => {
+    console.log("Using email", email, "found slack user", r);
+    return r.user.id;
+  });
 };
 
 const getSlackNameByEmail = function (email) {
-  return slack.users.lookupByEmail({ email: email }).then((r) => r.user.name);
+  return slack.users.lookupByEmail({ email: email }).then((r) => {
+    console.log("Using email", email, "found slack user", r);
+    return r.user.name;
+  });
 };
 
 const handleReviewRequested = function (context) {
@@ -54590,6 +54594,7 @@ const handleReviewRequested = function (context) {
     reviewer: context.payload.requested_reviewer.login,
     requester: context.payload.pull_request.user.login,
   });
+  console.log("pullRequestData", pullRequestData);
 
   const requesterPromise = getOktaUser(pullRequestData.requester)
     .then(getUserEmailByGithub)
@@ -54604,7 +54609,7 @@ const handleReviewRequested = function (context) {
       const reviewUser = users[1];
 
       sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
-        console.log("Message sent: ", res.ts)
+        console.log("Message sent about", requestUser, "to", reviewUser, res.ts)
       );
     })
     .catch(function (err) {
@@ -54613,6 +54618,7 @@ const handleReviewRequested = function (context) {
 };
 
 const main = function (context) {
+  console.log("Event received", context.eventName, context.payload.action);
   if (
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"

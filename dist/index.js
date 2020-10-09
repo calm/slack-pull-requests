@@ -54588,12 +54588,12 @@ const getSlackNameByEmail = function (email) {
 };
 
 const handleReviewRequested = function (context) {
-  const pullRequestData = Object.create({
+  const pullRequestData = {
     title: context.payload.pull_request.title,
     url: context.payload.pull_request.html_url,
     reviewer: context.payload.requested_reviewer.login,
     requester: context.payload.pull_request.user.login,
-  });
+  };
   console.log("pullRequestData", pullRequestData);
 
   const requesterPromise = getOktaUser(pullRequestData.requester)

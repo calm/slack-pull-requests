@@ -54618,10 +54618,8 @@ const handleReviewRequested = async function (context) {
     console.log(
       "Unable to construct pullRequestData for payload with PR:",
       context.payload.pull_request,
-      'and requested reviewer',
-      context.payload.requested_reviewer,
-      'and requested reviewers',
-      context.payload.requested_reviewers,
+      "and requested reviewer",
+      context.payload.requested_reviewer
     );
     core.setFailed(err.message);
     return;

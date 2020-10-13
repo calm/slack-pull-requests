@@ -103,7 +103,18 @@ const getSlackNameByEmail = function (email) {
   });
 };
 
-const handleReviewRequested = function (context) {
+const getSlackNameByGithub = async function (github) {
+  try {
+    const slackName = await getOktaUser(pullRequestData.requester)
+      .then(getUserEmailByGithub)
+      .then(getSlackNameByEmail);
+    return slackName;
+  } catch (err) {
+    return github;
+  }
+};
+
+const handleReviewRequested = async function (context) {
   const pullRequestData = {
     title: context.payload.pull_request.title,
     url: context.payload.pull_request.html_url,
@@ -112,25 +123,18 @@ const handleReviewRequested = function (context) {
   };
   console.log("pullRequestData", pullRequestData);
 
-  const requesterPromise = getOktaUser(pullRequestData.requester)
-    .then(getUserEmailByGithub)
-    .then(getSlackNameByEmail);
-  const reviewerPromise = getOktaUser(pullRequestData.reviewer)
-    .then(getUserEmailByGithub)
-    .then(getSlackIdByEmail);
-
-  Promise.all([requesterPromise, reviewerPromise])
-    .then((users) => {
-      const requestUser = users[0];
-      const reviewUser = users[1];
-
-      sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
-        console.log("Message sent about", requestUser, "to", reviewUser, res.ts)
-      );
-    })
-    .catch(function (err) {
-      core.setFailed(err.message);
-    });
+  try {
+    const requestUser = await getSlackNameByGithub(pullRequestData.requester);
+    const reviewUser = await getOktaUser(pullRequestData.reviewer)
+      .then(getUserEmailByGithub)
+      .then(getSlackIdByEmail);
+  
+    sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
+      console.log("Message sent about", requestUser, "to", reviewUser, res.ts)
+    );
+  } catch (err) {
+    core.setFailed(err.message);
+  }
 };
 
 const main = function (context) {

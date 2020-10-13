@@ -54615,7 +54615,10 @@ const handleReviewRequested = async function (context) {
       requester: context.payload.pull_request.user.login,
     };
   } catch (err) {
-    console.log('Unable to construct pullRequestData for payload', context.payload);
+    console.log(
+      "Unable to construct pullRequestData for payload",
+      context.payload
+    );
     core.setFailed(err.message);
     return;
   }

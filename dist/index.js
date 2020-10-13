@@ -54555,39 +54555,57 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
   ];
 };
 
-const sendSlackMessage = function (reviewUser, requestUser, pr) {
-  return slack.chat.postMessage({
+const sendSlackMessage = async function (reviewUser, requestUser, pr) {
+  const response = await slack.chat.postMessage({
     channel: String(reviewUser),
     blocks: slackMessageTemplateNewPR(requestUser, pr),
   });
+  return response;
 };
 
-const getOktaUser = function (handle) {
+const getOktaUser = async function (handle) {
   const search = `(profile.${githubFieldName} eq "@${handle}") or (profile.${githubFieldName} eq "${handle}")`;
   console.log("Searching okta", search);
-  return oktaClient.listUsers({ search, limit: 1 }).next();
+  const result = await oktaClient.listUsers({ search, limit: 1 }).next();
+  console.log("Found oktaUser", result);
+  return result;
 };
 
 const getUserEmailByGithub = function (oktaUser) {
-  console.log("Found oktaUser", oktaUser);
   return oktaUser.value.profile.email;
 };
 
-const getSlackIdByEmail = function (email) {
-  return slack.users.lookupByEmail({ email: email }).then((r) => {
-    console.log("Using email", email, "found slack user", r);
-    return r.user.id;
-  });
+const getSlackIdByEmail = async function (email) {
+  const result = await slack.users.lookupByEmail({ email: email });
+  console.log("Using email", email, "found slack user", result);
+  return result.user.id;
 };
 
-const getSlackNameByEmail = function (email) {
-  return slack.users.lookupByEmail({ email: email }).then((r) => {
-    console.log("Using email", email, "found slack user", r);
-    return r.user.name;
-  });
+const getSlackNameByEmail = async function (email) {
+  const result = await slack.users.lookupByEmail({ email: email });
+  console.log("Using email", email, "found slack user", result);
+  return result.user.name;
 };
 
-const handleReviewRequested = function (context) {
+const getSlackNameByGithub = async function (github) {
+  try {
+    const slackName = await getOktaUser(github)
+      .then(getUserEmailByGithub)
+      .then(getSlackNameByEmail);
+    return slackName;
+  } catch (err) {
+    return github;
+  }
+};
+
+const getSlackIdByGithub = async function (github) {
+  const slackId = await getOktaUser(github)
+    .then(getUserEmailByGithub)
+    .then(getSlackIdByEmail);
+  return slackId;
+};
+
+const handleReviewRequested = async function (context) {
   const pullRequestData = {
     title: context.payload.pull_request.title,
     url: context.payload.pull_request.html_url,
@@ -54596,25 +54614,18 @@ const handleReviewRequested = function (context) {
   };
   console.log("pullRequestData", pullRequestData);
 
-  const requesterPromise = getOktaUser(pullRequestData.requester)
-    .then(getUserEmailByGithub)
-    .then(getSlackNameByEmail);
-  const reviewerPromise = getOktaUser(pullRequestData.reviewer)
-    .then(getUserEmailByGithub)
-    .then(getSlackIdByEmail);
-
-  Promise.all([requesterPromise, reviewerPromise])
-    .then((users) => {
-      const requestUser = users[0];
-      const reviewUser = users[1];
-
-      sendSlackMessage(reviewUser, requestUser, pullRequestData).then((res) =>
-        console.log("Message sent about", requestUser, "to", reviewUser, res.ts)
-      );
-    })
-    .catch(function (err) {
-      core.setFailed(err.message);
-    });
+  try {
+    const requestUser = await getSlackNameByGithub(pullRequestData.requester);
+    const reviewUser = await getSlackIdByGithub(pullRequestData.reviewer);
+    const res = await sendSlackMessage(
+      reviewUser,
+      requestUser,
+      pullRequestData
+    );
+    console.log("Message sent about", requestUser, "to", reviewUser, res.ts);
+  } catch (err) {
+    core.setFailed(err.message);
+  }
 };
 
 const main = function (context) {

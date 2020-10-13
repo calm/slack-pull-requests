@@ -122,12 +122,18 @@ const getSlackIdByGithub = async function (github) {
 };
 
 const handleReviewRequested = async function (context) {
-  const pullRequestData = {
-    title: context.payload.pull_request.title,
-    url: context.payload.pull_request.html_url,
-    reviewer: context.payload.requested_reviewer.login,
-    requester: context.payload.pull_request.user.login,
-  };
+  try {
+    const pullRequestData = {
+      title: context.payload.pull_request.title,
+      url: context.payload.pull_request.html_url,
+      reviewer: context.payload.requested_reviewer.login,
+      requester: context.payload.pull_request.user.login,
+    };
+  } catch (err) {
+    console.log('Unable to construct pullRequestData for payload', context.payload);
+    core.setFailed(err.message);
+    return;
+  }
   console.log("pullRequestData", pullRequestData);
 
   try {

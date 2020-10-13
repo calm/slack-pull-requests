@@ -122,8 +122,9 @@ const getSlackIdByGithub = async function (github) {
 };
 
 const handleReviewRequested = async function (context) {
+  let pullRequestData;
   try {
-    const pullRequestData = {
+    pullRequestData = {
       title: context.payload.pull_request.title,
       url: context.payload.pull_request.html_url,
       reviewer: context.payload.requested_reviewer.login,

@@ -44,13 +44,19 @@ const slackMessageTemplateNewPR = function (requestUser, pr) {
   ];
 };
 
-const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
+const slackMessageTemplateReviewedPR = function (reviewUser, pr) {
+  const verb =
+    {
+      approved: "has approved",
+      request_changes: "has requested changes on",
+      commented: "has commented on",
+    }[pr.state] || "has commented on";
   return [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${reviewUser} has approved ${pr.title}: `,
+        text: `${reviewUser} ${verb} ${pr.title}: `,
       },
     },
     {
@@ -63,18 +69,21 @@ const slackMessageTemplateApprovedPR = function (reviewUser, pr) {
         text: pr.url,
       },
       accessory: {
-        type: "image",
-        image_url: prApprovalImg,
-        alt_text: "LGTM",
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: pr.title,
+        },
+        url: pr.url,
       },
     },
   ];
 };
 
-const sendSlackMessage = async function (reviewUser, requestUser, pr) {
+const sendSlackMessage = async function (message, to) {
   const response = await slack.chat.postMessage({
-    channel: String(reviewUser),
-    blocks: slackMessageTemplateNewPR(requestUser, pr),
+    channel: to,
+    blocks: message,
   });
   return response;
 };
@@ -121,21 +130,21 @@ const getSlackIdByGithub = async function (github) {
   return slackId;
 };
 
-const handleReviewRequested = async function (context) {
+const handleReviewRequested = async function (payload) {
   let pullRequestData;
   try {
     pullRequestData = {
-      title: context.payload.pull_request.title,
-      url: context.payload.pull_request.html_url,
-      reviewer: context.payload.requested_reviewer.login,
-      requester: context.payload.pull_request.user.login,
+      title: payload.pull_request.title,
+      url: payload.pull_request.html_url,
+      reviewer: payload.requested_reviewer.login,
+      requester: payload.pull_request.user.login,
     };
   } catch (err) {
     console.log(
       "Unable to construct pullRequestData for payload with PR:",
-      context.payload.pull_request,
+      payload.pull_request,
       "and requested reviewer",
-      context.payload.requested_reviewer
+      payload.requested_reviewer
     );
     core.setFailed(err.message);
     return;
@@ -146,11 +155,45 @@ const handleReviewRequested = async function (context) {
     const requestUser = await getSlackNameByGithub(pullRequestData.requester);
     const reviewUser = await getSlackIdByGithub(pullRequestData.reviewer);
     const res = await sendSlackMessage(
-      reviewUser,
-      requestUser,
-      pullRequestData
+      slackMessageTemplateNewPR(requestUser, pullRequestData),
+      reviewUser
     );
     console.log("Message sent about", requestUser, "to", reviewUser, res.ts);
+  } catch (err) {
+    core.setFailed(err.message);
+  }
+};
+
+const handleReviewSubmitted = async function (payload) {
+  let pullRequestData;
+  try {
+    pullRequestData = {
+      title: payload.pull_request.title,
+      url: payload.pull_request.html_url,
+      pr_owner: payload.pull_request.user.login,
+      reviewer: payload.review.user.login,
+      state: payload.review.state.toLowerCase(),
+    };
+  } catch (err) {
+    console.log(
+      "Unable to construct pullRequestData for payload with PR:",
+      payload.pull_request,
+      "and review",
+      payload.review
+    );
+    core.setFailed(err.message);
+    return;
+  }
+  console.log("pullRequestData", pullRequestData);
+
+  try {
+    const reviewUser = await getSlackNameByGithub(pullRequestData.reviewer);
+    const ownerUser = await getSlackIdByGithub(pullRequestData.pr_owner);
+    const res = await sendSlackMessage(
+      slackMessageTemplateReviewedPR(reviewUser, pullRequestData),
+      ownerUser
+    );
+    console.log("Message sent about review by", reviewUser, "to", ownerUser, res.ts);
   } catch (err) {
     core.setFailed(err.message);
   }
@@ -162,7 +205,12 @@ const main = function (context) {
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"
   ) {
-    handleReviewRequested(context);
+    handleReviewRequested(context.payload);
+  } else if (
+    context.eventName === "pull_request_review" &&
+    context.payload.action === "submitted"
+  ) {
+    handleReviewSubmitted(context.payload);
   }
 };
 

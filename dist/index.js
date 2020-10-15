@@ -54670,6 +54670,10 @@ const handleReviewSubmitted = async function (payload) {
   }
   console.log("pullRequestData", pullRequestData);
 
+  if (pullRequestData.pr_owner === pullRequestData.reviewer) {
+    return;
+  }
+
   try {
     const reviewUser = await getSlackNameByGithub(pullRequestData.reviewer);
     const ownerUser = await getSlackIdByGithub(pullRequestData.pr_owner);

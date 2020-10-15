@@ -184,7 +184,40 @@ module.exports = [["0","\u0000",127,"€"],["8140","丂丄丅丆丏丒丗丟丠�
 
 /***/ }),
 /* 5 */,
-/* 6 */,
+/* 6 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var authToken = __webpack_require__(334);
+
+const createActionAuth = function createActionAuth() {
+  if (!process.env.GITHUB_ACTION) {
+    throw new Error("[@octokit/auth-action] `GITHUB_ACTION` environment variable is not set. @octokit/auth-action is meant to be used in GitHub Actions only.");
+  }
+
+  const definitions = [process.env.GITHUB_TOKEN, process.env.INPUT_GITHUB_TOKEN, process.env.INPUT_TOKEN].filter(Boolean);
+
+  if (definitions.length === 0) {
+    throw new Error("[@octokit/auth-action] `GITHUB_TOKEN` variable is not set. It must be set on either `env:` or `with:`. See https://github.com/octokit/auth-action.js#createactionauth");
+  }
+
+  if (definitions.length > 1) {
+    throw new Error("[@octokit/auth-action] The token variable is specified more than once. Use either `with.token`, `with.GITHUB_TOKEN`, or `env.GITHUB_TOKEN`. See https://github.com/octokit/auth-action.js#createactionauth");
+  }
+
+  const token = definitions.pop();
+  return authToken.createTokenAuth(token);
+};
+
+exports.createActionAuth = createActionAuth;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 7 */
 /***/ (function(module) {
 
@@ -33177,7 +33210,30 @@ module.exports = function isAbsoluteURL(url) {
 /***/ }),
 /* 373 */,
 /* 374 */,
-/* 375 */,
+/* 375 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var core = __webpack_require__(762);
+var pluginRequestLog = __webpack_require__(636);
+var pluginPaginateRest = __webpack_require__(193);
+var pluginRestEndpointMethods = __webpack_require__(44);
+
+const VERSION = "18.0.6";
+
+const Octokit = core.Octokit.plugin(pluginRequestLog.requestLog, pluginRestEndpointMethods.restEndpointMethods, pluginPaginateRest.paginateRest).defaults({
+  userAgent: `octokit-rest.js/${VERSION}`
+});
+
+exports.Octokit = Octokit;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 376 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -44574,7 +44630,43 @@ module.exports = PasswordPolicyPasswordSettings;
 
 /***/ }),
 /* 635 */,
-/* 636 */,
+/* 636 */
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+const VERSION = "1.0.0";
+
+/**
+ * @param octokit Octokit instance
+ * @param options Options passed to Octokit constructor
+ */
+
+function requestLog(octokit) {
+  octokit.hook.wrap("request", (request, options) => {
+    octokit.log.debug("request", options);
+    const start = Date.now();
+    const requestOptions = octokit.request.endpoint.parse(options);
+    const path = requestOptions.url.replace(options.baseUrl, "");
+    return request(options).then(response => {
+      octokit.log.info(`${requestOptions.method} ${path} - ${response.status} in ${Date.now() - start}ms`);
+      return response;
+    }).catch(error => {
+      octokit.log.info(`${requestOptions.method} ${path} - ${error.status} in ${Date.now() - start}ms`);
+      throw error;
+    });
+  });
+}
+requestLog.VERSION = VERSION;
+
+exports.requestLog = requestLog;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 637 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -54489,14 +54581,14 @@ const github = __webpack_require__(438);
 // Requirements outside of Github Actions
 const okta = __webpack_require__(538);
 const { WebClient } = __webpack_require__(431);
+const { Octokit } = __webpack_require__(375);
+const { createActionAuth } = __webpack_require__(6);
 
 const oktaClient = new okta.Client();
 const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
-
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -54596,22 +54688,46 @@ const getSlackNameByEmail = async function (email) {
   return result.user.name;
 };
 
-const getSlackNameByGithub = async function (github) {
+const getSlackNameByGithub = async function (ghHandle) {
   try {
-    const slackName = await getOktaUser(github)
+    const slackName = await getOktaUser(ghHandle)
       .then(getUserEmailByGithub)
       .then(getSlackNameByEmail);
     return slackName;
   } catch (err) {
-    return github;
+    return handle;
   }
 };
 
-const getSlackIdByGithub = async function (github) {
-  const slackId = await getOktaUser(github)
+const getSlackIdByGithub = async function (ghHandle) {
+  const slackId = await getOktaUser(ghHandle)
     .then(getUserEmailByGithub)
     .then(getSlackIdByEmail);
   return slackId;
+};
+
+let _octokit;
+const getOctokit = async function () {
+  if (!_octokit) {
+    const auth = createActionAuth();
+    const ghAuthentication = await auth();
+    _octokit = new Octokit({
+      authStrategy: createActionAuth,
+      auth: ghAuthentication,
+    });
+  }
+  return _octokit;
+};
+
+const getGithubHandlesForTeam = async function (org, team_slug) {
+  const octokit = await getOctokit();
+  console.log("[hf] making oktokit req with", { org, team_slug });
+  const members = await octokit.teams.listMembersInOrg({
+    org,
+    team_slug,
+  });
+  console.log("[hf] members", members);
+  return members;
 };
 
 const handleReviewRequested = async function (payload) {
@@ -54620,6 +54736,7 @@ const handleReviewRequested = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       reviewer: payload.requested_reviewer.login,
       requester: payload.pull_request.user.login,
     };
@@ -54654,6 +54771,7 @@ const handleReviewSubmitted = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       pr_owner: payload.pull_request.user.login,
       reviewer: payload.review.user.login,
       state: payload.review.state.toLowerCase(),
@@ -54695,6 +54813,8 @@ const handleReviewSubmitted = async function (payload) {
 
 const main = function (context) {
   console.log("Event received", context.eventName, context.payload.action);
+  // TODO: remove this call
+  getGithubHandlesForTeam(context.payload.organization.login, "pod-bips");
   if (
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"

@@ -5,14 +5,14 @@ const github = require("@actions/github");
 // Requirements outside of Github Actions
 const okta = require("@okta/okta-sdk-nodejs");
 const { WebClient } = require("@slack/web-api");
+const { Octokit } = require("@octokit/rest");
+const { createActionAuth } = require("@octokit/auth-action");
 
 const oktaClient = new okta.Client();
 const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
-
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -112,22 +112,46 @@ const getSlackNameByEmail = async function (email) {
   return result.user.name;
 };
 
-const getSlackNameByGithub = async function (github) {
+const getSlackNameByGithub = async function (ghHandle) {
   try {
-    const slackName = await getOktaUser(github)
+    const slackName = await getOktaUser(ghHandle)
       .then(getUserEmailByGithub)
       .then(getSlackNameByEmail);
     return slackName;
   } catch (err) {
-    return github;
+    return handle;
   }
 };
 
-const getSlackIdByGithub = async function (github) {
-  const slackId = await getOktaUser(github)
+const getSlackIdByGithub = async function (ghHandle) {
+  const slackId = await getOktaUser(ghHandle)
     .then(getUserEmailByGithub)
     .then(getSlackIdByEmail);
   return slackId;
+};
+
+let _octokit;
+const getOctokit = async function () {
+  if (!_octokit) {
+    const auth = createActionAuth();
+    const ghAuthentication = await auth();
+    _octokit = new Octokit({
+      authStrategy: createActionAuth,
+      auth: ghAuthentication,
+    });
+  }
+  return _octokit;
+};
+
+const getGithubHandlesForTeam = async function (org, team_slug) {
+  const octokit = await getOctokit();
+  console.log("[hf] making oktokit req with", { org, team_slug });
+  const members = await octokit.teams.listMembersInOrg({
+    org,
+    team_slug,
+  });
+  console.log("[hf] members", members);
+  return members;
 };
 
 const handleReviewRequested = async function (payload) {
@@ -136,6 +160,7 @@ const handleReviewRequested = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       reviewer: payload.requested_reviewer.login,
       requester: payload.pull_request.user.login,
     };
@@ -170,6 +195,7 @@ const handleReviewSubmitted = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       pr_owner: payload.pull_request.user.login,
       reviewer: payload.review.user.login,
       state: payload.review.state.toLowerCase(),
@@ -211,6 +237,8 @@ const handleReviewSubmitted = async function (payload) {
 
 const main = function (context) {
   console.log("Event received", context.eventName, context.payload.action);
+  // TODO: remove this call
+  getGithubHandlesForTeam(context.payload.organization.login, "pod-bips");
   if (
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"

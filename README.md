@@ -50,6 +50,8 @@ jobs:
           GITHUB_FIELD_NAME: 'Github'
         uses: calm/slack-pull-requests@master
         id: notify
+        continue-on-error: true
+
 ```
 
 ## Required Environment Variables

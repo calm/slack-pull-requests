@@ -54742,10 +54742,14 @@ const handleReviewRequested = async function (payload) {
     };
   } catch (err) {
     console.log(
-      "Unable to construct pullRequestData for payload with PR:",
-      payload.pull_request,
-      "and requested reviewer",
-      payload.requested_reviewer
+      "Unable to construct pullRequestData for payload",
+      payload
+      //  with PR:",
+      // payload.pull_request,
+      // "and requested reviewer",
+      // payload.requested_reviewer,
+      // "and organization",
+      // payload.organization
     );
     core.setFailed(err.message);
     return;
@@ -54814,7 +54818,10 @@ const handleReviewSubmitted = async function (payload) {
 const main = function (context) {
   console.log("Event received", context.eventName, context.payload.action);
   // TODO: remove this call
-  getGithubHandlesForTeam(context.payload.organization.login, "pod-bips");
+  getGithubHandlesForTeam(
+    context.payload.organization.login,
+    "gh-actions-test-deleteme"
+  );
   if (
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"

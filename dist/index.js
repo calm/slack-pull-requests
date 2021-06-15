@@ -184,7 +184,40 @@ module.exports = [["0","\u0000",127,"€"],["8140","丂丄丅丆丏丒丗丟丠�
 
 /***/ }),
 /* 5 */,
-/* 6 */,
+/* 6 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var authToken = __webpack_require__(334);
+
+const createActionAuth = function createActionAuth() {
+  if (!process.env.GITHUB_ACTION) {
+    throw new Error("[@octokit/auth-action] `GITHUB_ACTION` environment variable is not set. @octokit/auth-action is meant to be used in GitHub Actions only.");
+  }
+
+  const definitions = [process.env.GITHUB_TOKEN, process.env.INPUT_GITHUB_TOKEN, process.env.INPUT_TOKEN].filter(Boolean);
+
+  if (definitions.length === 0) {
+    throw new Error("[@octokit/auth-action] `GITHUB_TOKEN` variable is not set. It must be set on either `env:` or `with:`. See https://github.com/octokit/auth-action.js#createactionauth");
+  }
+
+  if (definitions.length > 1) {
+    throw new Error("[@octokit/auth-action] The token variable is specified more than once. Use either `with.token`, `with.GITHUB_TOKEN`, or `env.GITHUB_TOKEN`. See https://github.com/octokit/auth-action.js#createactionauth");
+  }
+
+  const token = definitions.pop();
+  return authToken.createTokenAuth(token);
+};
+
+exports.createActionAuth = createActionAuth;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 7 */
 /***/ (function(module) {
 
@@ -12557,14 +12590,15 @@ module.exports = EmailUserFactor;
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.20';
+  var VERSION = '4.17.21';
 
   /** Used as the size to enable large array optimizations. */
   var LARGE_ARRAY_SIZE = 200;
 
   /** Error message constants. */
   var CORE_ERROR_TEXT = 'Unsupported core-js use. Try https://npms.io/search?q=ponyfill.',
-      FUNC_ERROR_TEXT = 'Expected a function';
+      FUNC_ERROR_TEXT = 'Expected a function',
+      INVALID_TEMPL_VAR_ERROR_TEXT = 'Invalid `variable` option passed into `_.template`';
 
   /** Used to stand-in for `undefined` hash values. */
   var HASH_UNDEFINED = '__lodash_hash_undefined__';
@@ -12697,10 +12731,11 @@ module.exports = EmailUserFactor;
   var reRegExpChar = /[\\^$.*+?()[\]{}|]/g,
       reHasRegExpChar = RegExp(reRegExpChar.source);
 
-  /** Used to match leading and trailing whitespace. */
-  var reTrim = /^\s+|\s+$/g,
-      reTrimStart = /^\s+/,
-      reTrimEnd = /\s+$/;
+  /** Used to match leading whitespace. */
+  var reTrimStart = /^\s+/;
+
+  /** Used to match a single whitespace character. */
+  var reWhitespace = /\s/;
 
   /** Used to match wrap detail comments. */
   var reWrapComment = /\{(?:\n\/\* \[wrapped with .+\] \*\/)?\n?/,
@@ -12709,6 +12744,18 @@ module.exports = EmailUserFactor;
 
   /** Used to match words composed of alphanumeric characters. */
   var reAsciiWord = /[^\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
+
+  /**
+   * Used to validate the `validate` option in `_.template` variable.
+   *
+   * Forbids characters which could potentially change the meaning of the function argument definition:
+   * - "()," (modification of function parameters)
+   * - "=" (default value)
+   * - "[]{}" (destructuring of function parameters)
+   * - "/" (beginning of a comment)
+   * - whitespace
+   */
+  var reForbiddenIdentifierChars = /[()=,{}\[\]\/\s]/;
 
   /** Used to match backslashes in property paths. */
   var reEscapeChar = /\\(\\)?/g;
@@ -13539,6 +13586,19 @@ module.exports = EmailUserFactor;
   }
 
   /**
+   * The base implementation of `_.trim`.
+   *
+   * @private
+   * @param {string} string The string to trim.
+   * @returns {string} Returns the trimmed string.
+   */
+  function baseTrim(string) {
+    return string
+      ? string.slice(0, trimmedEndIndex(string) + 1).replace(reTrimStart, '')
+      : string;
+  }
+
+  /**
    * The base implementation of `_.unary` without support for storing metadata.
    *
    * @private
@@ -13869,6 +13929,21 @@ module.exports = EmailUserFactor;
     return hasUnicode(string)
       ? unicodeToArray(string)
       : asciiToArray(string);
+  }
+
+  /**
+   * Used by `_.trim` and `_.trimEnd` to get the index of the last non-whitespace
+   * character of `string`.
+   *
+   * @private
+   * @param {string} string The string to inspect.
+   * @returns {number} Returns the index of the last non-whitespace character.
+   */
+  function trimmedEndIndex(string) {
+    var index = string.length;
+
+    while (index-- && reWhitespace.test(string.charAt(index))) {}
+    return index;
   }
 
   /**
@@ -25039,7 +25114,7 @@ module.exports = EmailUserFactor;
       if (typeof value != 'string') {
         return value === 0 ? value : +value;
       }
-      value = value.replace(reTrim, '');
+      value = baseTrim(value);
       var isBinary = reIsBinary.test(value);
       return (isBinary || reIsOctal.test(value))
         ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
@@ -27411,6 +27486,12 @@ module.exports = EmailUserFactor;
       if (!variable) {
         source = 'with (obj) {\n' + source + '\n}\n';
       }
+      // Throw an error if a forbidden character was found in `variable`, to prevent
+      // potential command injection attacks.
+      else if (reForbiddenIdentifierChars.test(variable)) {
+        throw new Error(INVALID_TEMPL_VAR_ERROR_TEXT);
+      }
+
       // Cleanup code by stripping empty strings.
       source = (isEvaluating ? source.replace(reEmptyStringLeading, '') : source)
         .replace(reEmptyStringMiddle, '$1')
@@ -27524,7 +27605,7 @@ module.exports = EmailUserFactor;
     function trim(string, chars, guard) {
       string = toString(string);
       if (string && (guard || chars === undefined)) {
-        return string.replace(reTrim, '');
+        return baseTrim(string);
       }
       if (!string || !(chars = baseToString(chars))) {
         return string;
@@ -27559,7 +27640,7 @@ module.exports = EmailUserFactor;
     function trimEnd(string, chars, guard) {
       string = toString(string);
       if (string && (guard || chars === undefined)) {
-        return string.replace(reTrimEnd, '');
+        return string.slice(0, trimmedEndIndex(string) + 1);
       }
       if (!string || !(chars = baseToString(chars))) {
         return string;
@@ -33177,7 +33258,30 @@ module.exports = function isAbsoluteURL(url) {
 /***/ }),
 /* 373 */,
 /* 374 */,
-/* 375 */,
+/* 375 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var core = __webpack_require__(762);
+var pluginRequestLog = __webpack_require__(636);
+var pluginPaginateRest = __webpack_require__(193);
+var pluginRestEndpointMethods = __webpack_require__(44);
+
+const VERSION = "18.0.6";
+
+const Octokit = core.Octokit.plugin(pluginRequestLog.requestLog, pluginRestEndpointMethods.restEndpointMethods, pluginPaginateRest.paginateRest).defaults({
+  userAgent: `octokit-rest.js/${VERSION}`
+});
+
+exports.Octokit = Octokit;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 376 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -44574,7 +44678,43 @@ module.exports = PasswordPolicyPasswordSettings;
 
 /***/ }),
 /* 635 */,
-/* 636 */,
+/* 636 */
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+const VERSION = "1.0.0";
+
+/**
+ * @param octokit Octokit instance
+ * @param options Options passed to Octokit constructor
+ */
+
+function requestLog(octokit) {
+  octokit.hook.wrap("request", (request, options) => {
+    octokit.log.debug("request", options);
+    const start = Date.now();
+    const requestOptions = octokit.request.endpoint.parse(options);
+    const path = requestOptions.url.replace(options.baseUrl, "");
+    return request(options).then(response => {
+      octokit.log.info(`${requestOptions.method} ${path} - ${response.status} in ${Date.now() - start}ms`);
+      return response;
+    }).catch(error => {
+      octokit.log.info(`${requestOptions.method} ${path} - ${error.status} in ${Date.now() - start}ms`);
+      throw error;
+    });
+  });
+}
+requestLog.VERSION = VERSION;
+
+exports.requestLog = requestLog;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 637 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -54489,14 +54629,14 @@ const github = __webpack_require__(438);
 // Requirements outside of Github Actions
 const okta = __webpack_require__(538);
 const { WebClient } = __webpack_require__(431);
+const { Octokit } = __webpack_require__(375);
+const { createActionAuth } = __webpack_require__(6);
 
 const oktaClient = new okta.Client();
 const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
-
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -54596,22 +54736,44 @@ const getSlackNameByEmail = async function (email) {
   return result.user.name;
 };
 
-const getSlackNameByGithub = async function (github) {
+const getSlackNameByGithub = async function (ghHandle) {
   try {
-    const slackName = await getOktaUser(github)
+    const slackName = await getOktaUser(ghHandle)
       .then(getUserEmailByGithub)
       .then(getSlackNameByEmail);
     return slackName;
   } catch (err) {
-    return github;
+    return handle;
   }
 };
 
-const getSlackIdByGithub = async function (github) {
-  const slackId = await getOktaUser(github)
+const getSlackIdByGithub = async function (ghHandle) {
+  const slackId = await getOktaUser(ghHandle)
     .then(getUserEmailByGithub)
     .then(getSlackIdByEmail);
   return slackId;
+};
+
+let _octokit;
+const getOctokit = async function () {
+  if (!_octokit) {
+    const auth = createActionAuth();
+    const ghAuthentication = await auth();
+    _octokit = new Octokit({
+      authStrategy: createActionAuth,
+      auth: ghAuthentication,
+    });
+  }
+  return _octokit;
+};
+
+const getGithubHandlesForTeam = async function (org, team_slug) {
+  const octokit = await getOctokit();
+  const members = await octokit.teams.listMembersInOrg({
+    org,
+    team_slug,
+  });
+  return members.data;
 };
 
 const handleReviewRequested = async function (payload) {
@@ -54620,16 +54782,22 @@ const handleReviewRequested = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
-      reviewer: payload.requested_reviewer.login,
+      org: payload.organization.login,
       requester: payload.pull_request.user.login,
     };
+    if (payload.requested_team) {
+      const teamMembers = await getGithubHandlesForTeam(
+        payload.organization.login,
+        payload.requested_team.slug
+      );
+      pullRequestData.reviewers = teamMembers.map(
+        (teamMember) => teamMember.login
+      );
+    } else {
+      pullRequestData.reviewers = [payload.requested_reviewer.login];
+    }
   } catch (err) {
-    console.log(
-      "Unable to construct pullRequestData for payload with PR:",
-      payload.pull_request,
-      "and requested reviewer",
-      payload.requested_reviewer
-    );
+    console.log("Unable to construct pullRequestData for payload", payload);
     core.setFailed(err.message);
     return;
   }
@@ -54637,12 +54805,29 @@ const handleReviewRequested = async function (payload) {
 
   try {
     const requestUser = await getSlackNameByGithub(pullRequestData.requester);
-    const reviewUser = await getSlackIdByGithub(pullRequestData.reviewer);
-    const res = await sendSlackMessage(
-      slackMessageTemplateNewPR(requestUser, pullRequestData),
-      reviewUser
+    const results = await Promise.allSettled(
+      pullRequestData.reviewers.map(async (reviewer) => {
+        const reviewUser = await getSlackIdByGithub(reviewer);
+        const res = await sendSlackMessage(
+          slackMessageTemplateNewPR(requestUser, pullRequestData),
+          reviewUser
+        );
+        console.log(
+          "Message sent about",
+          requestUser,
+          "to",
+          reviewUser,
+          res.ts
+        );
+      })
     );
-    console.log("Message sent about", requestUser, "to", reviewUser, res.ts);
+    const failureReasons = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason);
+    if (failureReasons.length) {
+      console.log("Failed to message", failureReasons.length, "users");
+      throw failureReasons[0];
+    }
   } catch (err) {
     core.setFailed(err.message);
   }
@@ -54654,6 +54839,7 @@ const handleReviewSubmitted = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       pr_owner: payload.pull_request.user.login,
       reviewer: payload.review.user.login,
       state: payload.review.state.toLowerCase(),

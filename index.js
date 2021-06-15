@@ -5,14 +5,14 @@ const github = require("@actions/github");
 // Requirements outside of Github Actions
 const okta = require("@okta/okta-sdk-nodejs");
 const { WebClient } = require("@slack/web-api");
+const { Octokit } = require("@octokit/rest");
+const { createActionAuth } = require("@octokit/auth-action");
 
 const oktaClient = new okta.Client();
 const githubFieldName = process.env.GITHUB_FIELD_NAME;
 
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
-
-const prApprovalImg = "https://i.imgur.com/41zA3Ek.png";
 
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
@@ -112,22 +112,44 @@ const getSlackNameByEmail = async function (email) {
   return result.user.name;
 };
 
-const getSlackNameByGithub = async function (github) {
+const getSlackNameByGithub = async function (ghHandle) {
   try {
-    const slackName = await getOktaUser(github)
+    const slackName = await getOktaUser(ghHandle)
       .then(getUserEmailByGithub)
       .then(getSlackNameByEmail);
     return slackName;
   } catch (err) {
-    return github;
+    return handle;
   }
 };
 
-const getSlackIdByGithub = async function (github) {
-  const slackId = await getOktaUser(github)
+const getSlackIdByGithub = async function (ghHandle) {
+  const slackId = await getOktaUser(ghHandle)
     .then(getUserEmailByGithub)
     .then(getSlackIdByEmail);
   return slackId;
+};
+
+let _octokit;
+const getOctokit = async function () {
+  if (!_octokit) {
+    const auth = createActionAuth();
+    const ghAuthentication = await auth();
+    _octokit = new Octokit({
+      authStrategy: createActionAuth,
+      auth: ghAuthentication,
+    });
+  }
+  return _octokit;
+};
+
+const getGithubHandlesForTeam = async function (org, team_slug) {
+  const octokit = await getOctokit();
+  const members = await octokit.teams.listMembersInOrg({
+    org,
+    team_slug,
+  });
+  return members.data;
 };
 
 const handleReviewRequested = async function (payload) {
@@ -136,16 +158,22 @@ const handleReviewRequested = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
-      reviewer: payload.requested_reviewer.login,
+      org: payload.organization.login,
       requester: payload.pull_request.user.login,
     };
+    if (payload.requested_team) {
+      const teamMembers = await getGithubHandlesForTeam(
+        payload.organization.login,
+        payload.requested_team.slug
+      );
+      pullRequestData.reviewers = teamMembers.map(
+        (teamMember) => teamMember.login
+      );
+    } else {
+      pullRequestData.reviewers = [payload.requested_reviewer.login];
+    }
   } catch (err) {
-    console.log(
-      "Unable to construct pullRequestData for payload with PR:",
-      payload.pull_request,
-      "and requested reviewer",
-      payload.requested_reviewer
-    );
+    console.log("Unable to construct pullRequestData for payload", payload);
     core.setFailed(err.message);
     return;
   }
@@ -153,12 +181,29 @@ const handleReviewRequested = async function (payload) {
 
   try {
     const requestUser = await getSlackNameByGithub(pullRequestData.requester);
-    const reviewUser = await getSlackIdByGithub(pullRequestData.reviewer);
-    const res = await sendSlackMessage(
-      slackMessageTemplateNewPR(requestUser, pullRequestData),
-      reviewUser
+    const results = await Promise.allSettled(
+      pullRequestData.reviewers.map(async (reviewer) => {
+        const reviewUser = await getSlackIdByGithub(reviewer);
+        const res = await sendSlackMessage(
+          slackMessageTemplateNewPR(requestUser, pullRequestData),
+          reviewUser
+        );
+        console.log(
+          "Message sent about",
+          requestUser,
+          "to",
+          reviewUser,
+          res.ts
+        );
+      })
     );
-    console.log("Message sent about", requestUser, "to", reviewUser, res.ts);
+    const failureReasons = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason);
+    if (failureReasons.length) {
+      console.log("Failed to message", failureReasons.length, "users");
+      throw failureReasons[0];
+    }
   } catch (err) {
     core.setFailed(err.message);
   }
@@ -170,6 +215,7 @@ const handleReviewSubmitted = async function (payload) {
     pullRequestData = {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
+      org: payload.organization.login,
       pr_owner: payload.pull_request.user.login,
       reviewer: payload.review.user.login,
       state: payload.review.state.toLowerCase(),

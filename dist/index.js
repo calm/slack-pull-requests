@@ -54721,13 +54721,11 @@ const getOctokit = async function () {
 
 const getGithubHandlesForTeam = async function (org, team_slug) {
   const octokit = await getOctokit();
-  console.log("[hf] making oktokit req with", { org, team_slug });
   const members = await octokit.teams.listMembersInOrg({
     org,
     team_slug,
   });
-  console.log("[hf] members", members);
-  return members;
+  return members.data;
 };
 
 const handleReviewRequested = async function (payload) {
@@ -54737,20 +54735,21 @@ const handleReviewRequested = async function (payload) {
       title: payload.pull_request.title,
       url: payload.pull_request.html_url,
       org: payload.organization.login,
-      reviewer: payload.requested_reviewer.login,
       requester: payload.pull_request.user.login,
     };
+    if (payload.requested_team) {
+      const teamMembers = await getGithubHandlesForTeam(
+        payload.organization.login,
+        payload.requested_team.slug
+      );
+      pullRequestData.reviewers = teamMembers.map(
+        (teamMember) => teamMember.login
+      );
+    } else {
+      pullRequestData.reviewers = [payload.requested_reviewer.login];
+    }
   } catch (err) {
-    console.log(
-      "Unable to construct pullRequestData for payload",
-      payload
-      //  with PR:",
-      // payload.pull_request,
-      // "and requested reviewer",
-      // payload.requested_reviewer,
-      // "and organization",
-      // payload.organization
-    );
+    console.log("Unable to construct pullRequestData for payload", payload);
     core.setFailed(err.message);
     return;
   }
@@ -54758,12 +54757,29 @@ const handleReviewRequested = async function (payload) {
 
   try {
     const requestUser = await getSlackNameByGithub(pullRequestData.requester);
-    const reviewUser = await getSlackIdByGithub(pullRequestData.reviewer);
-    const res = await sendSlackMessage(
-      slackMessageTemplateNewPR(requestUser, pullRequestData),
-      reviewUser
+    const results = await Promise.allSettled(
+      pullRequestData.reviewers.map(async (reviewer) => {
+        const reviewUser = await getSlackIdByGithub(reviewer);
+        const res = await sendSlackMessage(
+          slackMessageTemplateNewPR(requestUser, pullRequestData),
+          reviewUser
+        );
+        console.log(
+          "Message sent about",
+          requestUser,
+          "to",
+          reviewUser,
+          res.ts
+        );
+      })
     );
-    console.log("Message sent about", requestUser, "to", reviewUser, res.ts);
+    const failureReasons = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason);
+    if (failureReasons.length) {
+      console.log("Failed to message", failureReasons.length, "users");
+      throw failureReasons[0];
+    }
   } catch (err) {
     core.setFailed(err.message);
   }
@@ -54817,11 +54833,6 @@ const handleReviewSubmitted = async function (payload) {
 
 const main = function (context) {
   console.log("Event received", context.eventName, context.payload.action);
-  // TODO: remove this call
-  getGithubHandlesForTeam(
-    context.payload.organization.login,
-    "gh-actions-test-deleteme"
-  );
   if (
     context.eventName === "pull_request" &&
     context.payload.action === "review_requested"

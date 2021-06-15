@@ -79,3 +79,7 @@ See [here](https://docs.github.com/en/free-pro-team@latest/actions/reference/enc
 ## Required Okta Profile Fields
 
 - `github_user` - The Github handle of the Okta user, must include `@` in the value
+
+## Required Github Personal Token with User and Org Read Access
+
+- `USER_READ_TOKEN` Org secret is generated with `atlantis-calm` GH user with Org and User read accesses. This is to support the functionality to map individual users from team when the team is added as a requested reviewer.

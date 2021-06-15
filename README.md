@@ -47,6 +47,7 @@ jobs:
           OKTA_CLIENT_ORGURL: ${{ secrets.OKTA_CLIENT_ORGURL }}
           OKTA_CLIENT_TOKEN: ${{ secrets.OKTA_CLIENT_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.USER_READ_TOKEN }}
           GITHUB_FIELD_NAME: 'Github'
         uses: calm/slack-pull-requests@master
         id: notify
@@ -82,4 +83,4 @@ See [here](https://docs.github.com/en/free-pro-team@latest/actions/reference/enc
 
 ## Required Github Personal Token with User and Org Read Access
 
-- `USER_READ_TOKEN` Org secret is generated with `atlantis-calm` GH user with Org and User read accesses. This is to support the functionality to map individual users from team when the team is added as a requested reviewer.
+- The `USER_READ_TOKEN` secret is generated with Org and User read accesses. This is to support the functionality to map individual users from team when the team is added as a requested reviewer.

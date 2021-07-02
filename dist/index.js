@@ -54790,9 +54790,9 @@ const handleReviewRequested = async function (payload) {
         payload.organization.login,
         payload.requested_team.slug
       );
-      pullRequestData.reviewers = teamMembers.map(
-        (teamMember) => teamMember.login
-      );
+      pullRequestData.reviewers = teamMembers
+        .map((teamMember) => teamMember.login)
+        .filter((login) => login !== payload.pull_request.user.login);
     } else {
       pullRequestData.reviewers = [payload.requested_reviewer.login];
     }

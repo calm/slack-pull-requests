@@ -14,6 +14,14 @@ const githubFieldName = process.env.GITHUB_FIELD_NAME;
 const token = process.env.SLACK_BOT_TOKEN;
 const slack = new WebClient(token);
 
+const ellipsize = function (text, maxLen) {
+  if (text.length <= maxLen) {
+    return text;
+  }
+  const ellipsis = "...";
+  return text.slice(0, maxLen - ellipsis.length) + ellipsis;
+};
+
 const slackMessageTemplateNewPR = function (requestUser, pr) {
   return [
     {
@@ -36,7 +44,7 @@ const slackMessageTemplateNewPR = function (requestUser, pr) {
         type: "button",
         text: {
           type: "plain_text",
-          text: pr.title,
+          text: ellipsize(pr.title, 75),
         },
         url: pr.url,
       },
@@ -72,7 +80,7 @@ const slackMessageTemplateReviewedPR = function (reviewUser, pr) {
         type: "button",
         text: {
           type: "plain_text",
-          text: pr.title,
+          text: ellipsize(pr.title, 75),
         },
         url: pr.url,
       },

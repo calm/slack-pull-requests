@@ -100,7 +100,7 @@ const getOktaUser = async function (handle) {
   const search = `(profile.${githubFieldName} eq "@${handle}") or (profile.${githubFieldName} eq "${handle}")`;
   console.log("Searching okta", search);
   const result = await oktaClient.listUsers({ search, limit: 1 }).next();
-  console.log("Found oktaUser", result);
+  console.log("Found oktaUser", result.value.profile.Github);
   return result;
 };
 

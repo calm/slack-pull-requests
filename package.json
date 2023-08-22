@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/calm/slack-pull-requests#readme",
   "dependencies": {
-    "@actions/core": "^1.2.6",
+    "@actions/core": "^1.9.1",
     "@actions/github": "^4.0.0",
     "@octokit/auth-action": "^1.3.0",
     "@octokit/rest": "^18.0.6",

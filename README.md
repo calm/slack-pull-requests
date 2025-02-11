@@ -1,5 +1,11 @@
 # Slack Pull Requests
 
+## Deprecation notice
+
+> Hey all! Back in 2020 there was no GitHub<>Slack real-time integration, so we built https://github.com/calm/slack-pull-requests as a Hackathon project to give you real-time notifications of PR activity in Slack. Since then, GitHub and Slack have built an official integration with real-time support which you can set up via the instructions here: https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal[…]membership-in-organizations/managing-your-scheduled-reminders. :tada: In the interest of removing unneeded in-house code, please set up your alerts directly via this GitHub feature going forward, and we'll look to remove this in-house Slack bot at some point soon.
+
+Instructions to set up real-time alerts with the official GitHub slack bot can be found on the ["How to set up the GitHub Slack bot"](https://calmdotcom.atlassian.net/wiki/spaces/BETD/pages/3203137548/How+to+set+up+the+GitHub+Slack+bot) confluence page.
+
 ## Usage
 
 1. Set up your environment variables, Slack OAuth, and Okta profiles as detailed below
